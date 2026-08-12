@@ -21,10 +21,6 @@
                         <button id="loadVideosBtn" is="emby-button" type="button" class="raised button-submit block emby-button">
                             <span>Load Videos</span>
                         </button>
-
-                        <button id="clearVideosBtn" is="emby-button" type="button" class="raised button-submit block emby-button">
-                            <span>Clean Intros (if you used old plugin)</span>
-                        </button>
                     </div>
 
                     <div class="verticalSection">
@@ -62,7 +58,7 @@
         <script type="text/javascript">
             (() => {
                 var plugin = {
-                    guid: '07d86795-01f2-4d22-b174-cdc6056c3e7c'
+                    guid: '5d9f187d-c598-478d-8dc3-0223f3c39938'
                 };
 
                 var MediaTypeFilter = { Movies: 0, Shows: 1, Both: 2, None: 3 };
@@ -128,42 +124,11 @@
                     ApiClient.ajax({ type: 'POST', url, data, contentType: 'application/json' }).then(() => { loadPage(); }).catch(ev => alert(ev));
                 };
 
-                var clearIntros = () => {
-                    let url = ApiClient.getUrl('LocalIntros/ClearIntros');
-                    let data = {};
-                    ApiClient.ajax({ type: 'POST', url, data, contentType: 'application/json' }).then(() => { loadPage(); }).catch(ev => alert(ev));
-                };
-
                 var saveChanges = () => ApiClient.updatePluginConfiguration(plugin.guid, localIntroConfig);
-
-                // Renders a <select multiple> with an "All" option. If nothing is selected, or "All"
-                // is selected, the field is treated as unrestricted (stored as an empty array).
-                var multiSelectHtml = (id, options, selectedValues, allLabel) => {
-                    var isAll = !selectedValues || selectedValues.length === 0;
-                    var rows = Math.min(6, options.length + 1);
-                    var html = '<select id="' + id + '" is="emby-select" multiple size="' + rows + '">';
-                    html += '<option value="' + ALL_VALUE + '"' + (isAll ? ' selected' : '') + '>' + allLabel + '</option>';
-                    for (var opt of options) {
-                        var sel = (!isAll && selectedValues.indexOf(opt.value) !== -1) ? ' selected' : '';
-                        html += '<option value="' + escapeHtml(opt.value) + '"' + sel + '>' + escapeHtml(opt.label) + '</option>';
-                    }
-                    html += '</select>';
-                    return html;
-                };
 
                 var escapeHtml = str => String(str).replace(/[&<>"']/g, c => ({
                     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
                 }[c]));
-
-                var readMultiSelect = id => {
-                    var el = document.getElementById(id);
-                    if (!el) return [];
-                    var selected = Array.from(el.selectedOptions).map(o => o.value);
-                    if (selected.length === 0 || selected.indexOf(ALL_VALUE) !== -1) {
-                        return [];
-                    }
-                    return selected;
-                };
 
                 var getVideoName = introId => {
                     var v = localIntroConfig.DetectedLocalVideos.find(x => x.ItemId === introId);
@@ -184,6 +149,119 @@
                                 return getVideoName(a.IntroId).localeCompare(getVideoName(b.IntroId));
                         }
                     });
+                };
+
+                // ---- Collapsed checkbox-dropdown multi-select widget ----
+                // Closed by default, showing a summary label. Click opens a checkbox panel;
+                // click elsewhere closes it. Selecting "All" clears the selection (empty array
+                // means unrestricted, matching how the backend interprets it).
+
+                var closeAllMultiSelectPanels = () => {
+                    $('.myriadMultiSelect-panel').hide();
+                };
+
+                $(document).on('click', ev => {
+                    if (!$(ev.target).closest('.myriadMultiSelect').length) {
+                        closeAllMultiSelectPanels();
+                    }
+                });
+
+                var buildMultiSelectLabel = (selectedValues, options, allLabel) => {
+                    if (!selectedValues || selectedValues.length === 0) return allLabel;
+                    if (selectedValues.length <= 2) {
+                        return selectedValues.map(v => {
+                            var opt = options.find(o => o.value === v);
+                            return opt ? opt.label : v;
+                        }).join(', ');
+                    }
+                    return selectedValues.length + ' selected';
+                };
+
+                // onChange(newValuesArray) is called whenever the selection changes.
+                var renderMultiSelectDropdown = (id, options, selectedValues, allLabel, onChange) => {
+                    var currentValues = (selectedValues || []).slice();
+
+                    var root = $('<div class="myriadMultiSelect" id="' + id + '" style="position:relative;"></div>');
+
+                    var toggle = $(
+                        '<button type="button" is="emby-button" class="raised block emby-button myriadMultiSelect-toggle" ' +
+                        'style="display:flex;justify-content:space-between;align-items:center;width:100%;text-align:left;">' +
+                        '<span class="myriadMultiSelect-label"></span><span style="margin-left:0.5em;">&#9662;</span>' +
+                        '</button>'
+                    );
+
+                    var panel = $(
+                        '<div class="paperList myriadMultiSelect-panel" style="display:none;position:absolute;top:100%;left:0;right:0;' +
+                        'z-index:1000;max-height:220px;overflow-y:auto;margin-top:4px;padding:0.5em;box-sizing:border-box;"></div>'
+                    );
+
+                    var updateLabel = () => {
+                        toggle.find('.myriadMultiSelect-label').text(buildMultiSelectLabel(currentValues, options, allLabel));
+                    };
+
+                    var allRow = $(
+                        '<label class="checkboxContainer" style="display:block;margin:0.25em 0;">' +
+                        '<input type="checkbox" is="emby-checkbox" value="' + ALL_VALUE + '" /><span>' + escapeHtml(allLabel) + '</span></label>'
+                    );
+                    panel.append(allRow);
+
+                    var optionRows = options.map(opt => ({
+                        opt,
+                        row: $(
+                            '<label class="checkboxContainer" style="display:block;margin:0.25em 0;">' +
+                            '<input type="checkbox" is="emby-checkbox" value="' + escapeHtml(opt.value) + '" /><span>' + escapeHtml(opt.label) + '</span></label>'
+                        )
+                    }));
+                    optionRows.forEach(o => panel.append(o.row));
+
+                    var syncCheckboxes = () => {
+                        var isAll = currentValues.length === 0;
+                        allRow.find('input').prop('checked', isAll);
+                        optionRows.forEach(o => {
+                            o.row.find('input').prop('checked', !isAll && currentValues.indexOf(o.opt.value) !== -1);
+                        });
+                    };
+
+                    allRow.find('input').on('change', function () {
+                        if (this.checked) {
+                            currentValues = [];
+                            syncCheckboxes();
+                            updateLabel();
+                            onChange(currentValues);
+                        } else {
+                            // "All" can't be manually unchecked with nothing else selected.
+                            this.checked = true;
+                        }
+                    });
+
+                    optionRows.forEach(o => {
+                        o.row.find('input').on('change', function () {
+                            var idx = currentValues.indexOf(o.opt.value);
+                            if (this.checked && idx === -1) {
+                                currentValues.push(o.opt.value);
+                            } else if (!this.checked && idx !== -1) {
+                                currentValues.splice(idx, 1);
+                            }
+                            syncCheckboxes();
+                            updateLabel();
+                            onChange(currentValues);
+                        });
+                    });
+
+                    toggle.on('click', ev => {
+                        ev.stopPropagation();
+                        var isOpen = panel.is(':visible');
+                        closeAllMultiSelectPanels();
+                        panel.toggle(!isOpen);
+                    });
+
+                    panel.on('click', ev => ev.stopPropagation());
+
+                    syncCheckboxes();
+                    updateLabel();
+
+                    root.append(toggle).append(panel);
+                    return root;
                 };
 
                 var renderRuleCards = () => {
@@ -220,10 +298,26 @@
                         '<label style="margin-right:1em;"><input type="radio" name="' + mediaTypeName + '" value="' + value + '"' +
                         (rule.MediaType === value ? ' checked' : '') + ' /> ' + label + '</label>';
 
-                    var card = $('<div class="paperList" style="padding:1em 1.5em;margin-bottom:1em;">');
-                    card.append($('<h3>').text(name));
+                    var card = $('<div class="paperList" style="padding:1em 1.5em;margin-bottom:1em;overflow:visible;">');
 
-                    card.append($(
+                    var caret = $('<span style="margin-right:0.5em;display:inline-block;">&#9656;</span>');
+                    var titleEl = $('<h3 style="margin:0;display:inline;">').text(name);
+                    var headerLeft = $('<div style="display:flex;align-items:center;">').append(caret).append(titleEl);
+
+                    var freqWrap = $(
+                        '<div class="inputContainer" style="margin:0;display:flex;align-items:center;gap:0.5em;">' +
+                        '<label class="inputLabel inputLabelUnfocused" style="margin:0;white-space:nowrap;">Frequency</label>' +
+                        '<input id="' + freqId + '" is="emby-input" type="number" min="1" max="100" style="width:70px;" value="' + rule.Frequency + '" />' +
+                        '</div>'
+                    );
+                    freqWrap.on('click', ev => ev.stopPropagation());
+
+                    var header = $('<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">');
+                    header.append(headerLeft).append(freqWrap);
+
+                    var body = $('<div style="display:none;margin-top:0.75em;">');
+
+                    body.append($(
                         '<div class="inputContainer">' +
                         '<label class="inputLabel inputLabelUnfocused">Play For</label><br/>' +
                         radio(MediaTypeFilter.Movies, 'Movies Only') +
@@ -233,43 +327,30 @@
                         '</div>'
                     ));
 
-                    card.append($(
-                        '<div class="inputContainer">' +
-                        '<label class="inputLabel inputLabelUnfocused" for="' + tagId + '">Tags</label>' +
-                        multiSelectHtml(tagId, tagOptions, rule.Tags, 'All Tags') +
-                        '</div>'
-                    ));
+                    var tagField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Tags</label></div>');
+                    tagField.append(renderMultiSelectDropdown(tagId, tagOptions, rule.Tags, 'All Tags', vals => { rule.Tags = vals; }));
+                    body.append(tagField);
 
-                    card.append($(
-                        '<div class="inputContainer">' +
-                        '<label class="inputLabel inputLabelUnfocused" for="' + ratingId + '">Ratings</label>' +
-                        multiSelectHtml(ratingId, ratingOptions, rule.Ratings, 'All Ratings') +
-                        '</div>'
-                    ));
+                    var ratingField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Ratings</label></div>');
+                    ratingField.append(renderMultiSelectDropdown(ratingId, ratingOptions, rule.Ratings, 'All Ratings', vals => { rule.Ratings = vals; }));
+                    body.append(ratingField);
 
-                    card.append($(
-                        '<div class="inputContainer">' +
-                        '<label class="inputLabel inputLabelUnfocused" for="' + userId + '">Users</label>' +
-                        multiSelectHtml(userId, userOptions, rule.UserIds, 'All Users') +
-                        '</div>'
-                    ));
+                    var userField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Users</label></div>');
+                    userField.append(renderMultiSelectDropdown(userId, userOptions, rule.UserIds, 'All Users', vals => { rule.UserIds = vals; }));
+                    body.append(userField);
 
-                    card.append($(
-                        '<div class="inputContainer">' +
-                        '<label class="inputLabel inputLabelUnfocused" for="' + freqId + '">Frequency</label>' +
-                        '<input id="' + freqId + '" is="emby-input" type="number" min="1" max="100" value="' + rule.Frequency + '" />' +
-                        '<div class="fieldDescription">Relative weight vs. other eligible intros (1-100)</div>' +
-                        '</div>'
-                    ));
+                    header.on('click', () => {
+                        var isOpen = body.is(':visible');
+                        body.toggle(!isOpen);
+                        caret.html(isOpen ? '&#9656;' : '&#9662;');
+                    });
 
+                    card.append(header).append(body);
                     container.append(card);
 
                     card.on('change', 'input[name="' + mediaTypeName + '"]', () => {
                         rule.MediaType = parseInt($('input[name="' + mediaTypeName + '"]:checked').val(), 10);
                     });
-                    card.on('change', '#' + tagId, () => { rule.Tags = readMultiSelect(tagId); });
-                    card.on('change', '#' + ratingId, () => { rule.Ratings = readMultiSelect(ratingId); });
-                    card.on('change', '#' + userId, () => { rule.UserIds = readMultiSelect(userId); });
                     card.on('change', '#' + freqId, () => {
                         var val = parseInt($('#' + freqId).val(), 10);
                         if (isNaN(val)) val = 1;
@@ -310,12 +391,6 @@
 
                 $('#loadVideosBtn').click(ev => {
                     saveChanges().then(() => loadVideos());
-                });
-
-                $('#clearVideosBtn').click(async ev => {
-                    await saveChanges();
-                    await clearIntros();
-                    await loadVideos();
                 });
 
                 $('#local').change(ev => {
