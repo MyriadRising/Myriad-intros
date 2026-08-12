@@ -24,14 +24,16 @@
         "overview": "Display flashy intros before movies and other videos",
         "owner": "MyriadRising",
         "category": "MoviesAndShows",
+        "image": "image.png",
+        "imageUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/image.png",
         "versions": [
             {
-                "version": "3.1.0.0",
-                "changelog": "- Added Preview: play any intro clip in an overlay without leaving the config page",
+                "version": "4.0.0.0",
+                "changelog": "- Added Preview: play any intro clip in an overlay without leaving the config page\n- Added plugin thumbnail for the catalog listing",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_3.1.0.0.zip",
-                "checksum": "a0746eb0c287f7b7332e81fc04a90ab8",
-                "timestamp": "2026-08-12T03:42:18Z"
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_4.0.0.0.zip",
+                "checksum": "454604e74497963626fa2ea975e6ac07",
+                "timestamp": "2026-08-12T04:21:14Z"
             },
             {
                 "version": "3.0.0.0",
