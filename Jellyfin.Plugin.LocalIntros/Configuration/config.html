@@ -140,6 +140,60 @@
 
                 var saveChanges = () => ApiClient.updatePluginConfiguration(plugin.guid, localIntroConfig);
 
+                // ---- Shared preview overlay ----
+                // One modal reused across all cards. Preview swaps the <video> src to the clicked
+                // intro's stream URL and shows the overlay; closing pauses and clears it.
+
+                var previewModal = null;
+                var previewVideo = null;
+                var previewTitle = null;
+
+                var buildPreviewModal = () => {
+                    previewModal = $(
+                        '<div id="myriadPreviewModal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;' +
+                        'background:rgba(0,0,0,0.75);z-index:9999;align-items:center;justify-content:center;">' +
+                        '<div style="background:#101010;padding:1em;border-radius:8px;max-width:90vw;max-height:90vh;position:relative;">' +
+                        '<button type="button" is="emby-button" data-mini="true" class="raised raised-mini emby-button" ' +
+                        'style="position:absolute;top:-14px;right:-14px;">&times;</button>' +
+                        '<h3 style="margin:0 0 0.5em 0;color:#fff;"></h3>' +
+                        '<video controls autoplay style="max-width:80vw;max-height:75vh;display:block;"></video>' +
+                        '</div></div>'
+                    );
+
+                    previewVideo = previewModal.find('video');
+                    previewTitle = previewModal.find('h3');
+
+                    previewModal.find('button').on('click', closePreview);
+                    previewModal.on('click', ev => {
+                        if (ev.target === previewModal[0]) closePreview();
+                    });
+                    previewModal.find('> div').on('click', ev => ev.stopPropagation());
+
+                    $(document).on('keydown', ev => {
+                        if (ev.key === 'Escape' && previewModal.is(':visible')) closePreview();
+                    });
+
+                    $('body').append(previewModal);
+                };
+
+                var closePreview = () => {
+                    previewVideo[0].pause();
+                    previewVideo.attr('src', '');
+                    previewModal.css('display', 'none');
+                };
+
+                var openPreview = (introId, name) => {
+                    if (!previewModal) buildPreviewModal();
+                    var url = ApiClient.getUrl('Videos/' + introId + '/stream', {
+                        Static: true,
+                        api_key: ApiClient.accessToken()
+                    });
+                    previewTitle.text(name);
+                    previewVideo.attr('src', url);
+                    previewModal.css('display', 'flex');
+                    previewVideo[0].play().catch(() => {});
+                };
+
                 var escapeHtml = str => String(str).replace(/[&<>"']/g, c => ({
                     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
                 }[c]));
@@ -333,6 +387,15 @@
                         '<span></span></button>'
                     );
 
+                    var previewBtn = $(
+                        '<button type="button" is="emby-button" data-mini="true" class="raised raised-mini emby-button" style="white-space:nowrap;">' +
+                        '<span>Preview</span></button>'
+                    );
+                    previewBtn.on('click', ev => {
+                        ev.stopPropagation();
+                        openPreview(introId, name);
+                    });
+
                     var applyMediaTypeStyling = () => {
                         var style = MEDIA_TYPE_STYLE[rule.MediaType] || MEDIA_TYPE_STYLE[MediaTypeFilter.Both];
                         card.css({
@@ -351,7 +414,7 @@
                     });
 
                     var rightGroup = $('<div style="display:flex;align-items:center;gap:0.75em;flex-shrink:0;">');
-                    rightGroup.append(playForBadge).append(freqWrap).append(enableDisableBtn);
+                    rightGroup.append(playForBadge).append(freqWrap).append(previewBtn).append(enableDisableBtn);
 
                     var header = $('<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">');
                     header.append(headerLeft).append(rightGroup);

@@ -26,28 +26,20 @@
         "category": "MoviesAndShows",
         "versions": [
             {
+                "version": "3.1.0.0",
+                "changelog": "- Added Preview: play any intro clip in an overlay without leaving the config page",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_3.1.0.0.zip",
+                "checksum": "a0746eb0c287f7b7332e81fc04a90ab8",
+                "timestamp": "2026-08-12T03:42:18Z"
+            },
+            {
                 "version": "3.0.0.0",
                 "changelog": "- Fix: MediaType now uses the string enum values Jellyfin's API actually returns (was using numeric values, causing a crash on load)",
                 "targetAbi": "10.11.0.0",
                 "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_3.0.0.0.zip",
                 "checksum": "283c4aa758c0c2949fe38d2989a18b8e",
                 "timestamp": "2026-08-12T03:25:06Z"
-            },
-            {
-                "version": "2.0.0.0",
-                "changelog": "- UI: collapsible per-video rule cards showing name, Play-For status, and Freq when collapsed\n- UI: card color-coded by Play For state (blue=Movies, purple=Shows, green=Both, red=None)\n- UI: one-click Enable/Disable button per video (toggles None/Both)\n- UI: Tags/Ratings/Users are now collapsed checkbox-dropdowns instead of scrollable multi-selects, laid out horizontally\n- Removed unused \"Clean Intros\" legacy-migration button",
-                "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_2.0.0.0.zip",
-                "checksum": "c393ff869e03d3d5a3b02b95961a104b",
-                "timestamp": "2026-08-12T03:19:32Z"
-            },
-            {
-                "version": "1.0.0.0",
-                "changelog": "- Rebuilt rules engine: one rule per intro video (media type, tags, ratings, users, frequency weight)\n- Removed legacy Genre/Studio/Date-range rules and Precedence in favor of the new per-video rules\n- Added admin-managed per-user opt-out (disable intros entirely for specific users)",
-                "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_1.0.0.0.zip",
-                "checksum": "7d75a2aa99dd0e216fc4bb7e051474e0",
-                "timestamp": "2026-08-12T02:49:57Z"
             }
         ]
     }
