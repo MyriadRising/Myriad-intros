@@ -64,6 +64,20 @@
                 var MediaTypeFilter = { Movies: 0, Shows: 1, Both: 2, None: 3 };
                 var ALL_VALUE = '__all__';
 
+                var MEDIA_TYPE_STYLE = {
+                    0: { color: '#1e88e5', label: 'Movies' },
+                    1: { color: '#8e24aa', label: 'Shows' },
+                    2: { color: '#43a047', label: 'Both' },
+                    3: { color: '#e53935', label: 'None' }
+                };
+
+                var rgba = (hex, alpha) => {
+                    var r = parseInt(hex.slice(1, 3), 16);
+                    var g = parseInt(hex.slice(3, 5), 16);
+                    var b = parseInt(hex.slice(5, 7), 16);
+                    return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+                };
+
                 var localIntroConfig = {
                     Local: "",
                     DetectedLocalVideos: [],
@@ -298,22 +312,49 @@
                         '<label style="margin-right:1em;"><input type="radio" name="' + mediaTypeName + '" value="' + value + '"' +
                         (rule.MediaType === value ? ' checked' : '') + ' /> ' + label + '</label>';
 
-                    var card = $('<div class="paperList" style="padding:1em 1.5em;margin-bottom:1em;overflow:visible;">');
+                    var card = $('<div class="paperList" style="padding:1em 1.5em;margin-bottom:1em;overflow:visible;border-left:4px solid transparent;">');
 
-                    var caret = $('<span style="margin-right:0.5em;display:inline-block;">&#9656;</span>');
-                    var titleEl = $('<h3 style="margin:0;display:inline;">').text(name);
-                    var headerLeft = $('<div style="display:flex;align-items:center;">').append(caret).append(titleEl);
+                    var caret = $('<span style="margin-right:0.5em;display:inline-block;flex-shrink:0;">&#9656;</span>');
+                    var titleEl = $('<h3 style="margin:0;display:inline;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">').text(name);
+                    var headerLeft = $('<div style="display:flex;align-items:center;flex:1;min-width:0;overflow:hidden;margin-right:1em;">').append(caret).append(titleEl);
+
+                    var playForBadge = $('<span style="font-size:0.8em;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;color:#fff;"></span>');
 
                     var freqWrap = $(
                         '<div class="inputContainer" style="margin:0;display:flex;align-items:center;gap:0.5em;">' +
-                        '<label class="inputLabel inputLabelUnfocused" style="margin:0;white-space:nowrap;">Frequency</label>' +
-                        '<input id="' + freqId + '" is="emby-input" type="number" min="1" max="100" style="width:70px;" value="' + rule.Frequency + '" />' +
+                        '<label class="inputLabel inputLabelUnfocused" style="margin:0;white-space:nowrap;">Freq</label>' +
+                        '<input id="' + freqId + '" is="emby-input" type="number" min="1" max="100" style="width:60px;" value="' + rule.Frequency + '" />' +
                         '</div>'
                     );
                     freqWrap.on('click', ev => ev.stopPropagation());
 
+                    var enableDisableBtn = $(
+                        '<button type="button" is="emby-button" data-mini="true" class="raised raised-mini emby-button" style="white-space:nowrap;">' +
+                        '<span></span></button>'
+                    );
+
+                    var applyMediaTypeStyling = () => {
+                        var style = MEDIA_TYPE_STYLE[rule.MediaType];
+                        card.css({
+                            borderLeftColor: style.color,
+                            backgroundColor: rgba(style.color, 0.1)
+                        });
+                        playForBadge.css('background-color', style.color).text(style.label);
+                        enableDisableBtn.find('span').text(rule.MediaType === MediaTypeFilter.None ? 'Enable' : 'Disable');
+                    };
+
+                    enableDisableBtn.on('click', ev => {
+                        ev.stopPropagation();
+                        rule.MediaType = rule.MediaType === MediaTypeFilter.None ? MediaTypeFilter.Both : MediaTypeFilter.None;
+                        card.find('input[name="' + mediaTypeName + '"][value="' + rule.MediaType + '"]').prop('checked', true);
+                        applyMediaTypeStyling();
+                    });
+
+                    var rightGroup = $('<div style="display:flex;align-items:center;gap:0.75em;flex-shrink:0;">');
+                    rightGroup.append(playForBadge).append(freqWrap).append(enableDisableBtn);
+
                     var header = $('<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">');
-                    header.append(headerLeft).append(freqWrap);
+                    header.append(headerLeft).append(rightGroup);
 
                     var body = $('<div style="display:none;margin-top:0.75em;">');
 
@@ -327,17 +368,21 @@
                         '</div>'
                     ));
 
-                    var tagField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Tags</label></div>');
+                    var filterRow = $('<div style="display:flex;gap:1em;flex-wrap:wrap;">');
+
+                    var tagField = $('<div class="inputContainer" style="flex:1;min-width:160px;margin:0;"><label class="inputLabel inputLabelUnfocused">Tags</label></div>');
                     tagField.append(renderMultiSelectDropdown(tagId, tagOptions, rule.Tags, 'All Tags', vals => { rule.Tags = vals; }));
-                    body.append(tagField);
+                    filterRow.append(tagField);
 
-                    var ratingField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Ratings</label></div>');
+                    var ratingField = $('<div class="inputContainer" style="flex:1;min-width:160px;margin:0;"><label class="inputLabel inputLabelUnfocused">Ratings</label></div>');
                     ratingField.append(renderMultiSelectDropdown(ratingId, ratingOptions, rule.Ratings, 'All Ratings', vals => { rule.Ratings = vals; }));
-                    body.append(ratingField);
+                    filterRow.append(ratingField);
 
-                    var userField = $('<div class="inputContainer"><label class="inputLabel inputLabelUnfocused">Users</label></div>');
+                    var userField = $('<div class="inputContainer" style="flex:1;min-width:160px;margin:0;"><label class="inputLabel inputLabelUnfocused">Users</label></div>');
                     userField.append(renderMultiSelectDropdown(userId, userOptions, rule.UserIds, 'All Users', vals => { rule.UserIds = vals; }));
-                    body.append(userField);
+                    filterRow.append(userField);
+
+                    body.append(filterRow);
 
                     header.on('click', () => {
                         var isOpen = body.is(':visible');
@@ -345,11 +390,14 @@
                         caret.html(isOpen ? '&#9656;' : '&#9662;');
                     });
 
+                    applyMediaTypeStyling();
+
                     card.append(header).append(body);
                     container.append(card);
 
                     card.on('change', 'input[name="' + mediaTypeName + '"]', () => {
                         rule.MediaType = parseInt($('input[name="' + mediaTypeName + '"]:checked').val(), 10);
+                        applyMediaTypeStyling();
                     });
                     card.on('change', '#' + freqId, () => {
                         var val = parseInt($('#' + freqId).val(), 10);

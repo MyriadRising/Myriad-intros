@@ -26,6 +26,14 @@
         "category": "MoviesAndShows",
         "versions": [
             {
+                "version": "2.0.0.0",
+                "changelog": "- UI: collapsible per-video rule cards showing name, Play-For status, and Freq when collapsed\n- UI: card color-coded by Play For state (blue=Movies, purple=Shows, green=Both, red=None)\n- UI: one-click Enable/Disable button per video (toggles None/Both)\n- UI: Tags/Ratings/Users are now collapsed checkbox-dropdowns instead of scrollable multi-selects, laid out horizontally\n- Removed unused \"Clean Intros\" legacy-migration button",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-local-intros/myriad-local-intros_2.0.0.0.zip",
+                "checksum": "c393ff869e03d3d5a3b02b95961a104b",
+                "timestamp": "2026-08-12T03:19:32Z"
+            },
+            {
                 "version": "1.0.0.0",
                 "changelog": "- Rebuilt rules engine: one rule per intro video (media type, tags, ratings, users, frequency weight)\n- Removed legacy Genre/Studio/Date-range rules and Precedence in favor of the new per-video rules\n- Added admin-managed per-user opt-out (disable intros entirely for specific users)",
                 "targetAbi": "10.11.0.0",
