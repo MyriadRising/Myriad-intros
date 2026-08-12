@@ -11,7 +11,7 @@
                 "version": "5.0.0.0",
                 "changelog": "- Rebuilt rules engine: one rule per intro video (media type, tags, ratings, users, frequency weight)\n- Removed legacy Genre/Studio/Date-range rules and Precedence in favor of the new per-video rules\n- Added admin-managed per-user opt-out (disable intros entirely for specific users)",
                 "targetAbi": "10.11.0.0",
-                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/artifacts/local-intros/local-intros_5.0.0.0.zip",
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/local-intros/local-intros_5.0.0.0.zip",
                 "checksum": "f9a311f1d6f658de5d1cb95ff556d6e5",
                 "timestamp": "2026-08-12T02:06:52Z"
             }
