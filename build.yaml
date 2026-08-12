@@ -1,6 +1,6 @@
 name: 'Myriad Local Intros'
 guid: '5d9f187d-c598-478d-8dc3-0223f3c39938'
-version: 2
+version: 3
 targetAbi: '10.11.0.0'
 framework: 'net9.0'
 owner: 'MyriadRising'
@@ -12,8 +12,4 @@ category: 'MoviesAndShows'
 artifacts:
   - 'Jellyfin.Plugin.LocalIntros.dll'
 changelog: |-
-  - UI: collapsible per-video rule cards showing name, Play-For status, and Freq when collapsed
-  - UI: card color-coded by Play For state (blue=Movies, purple=Shows, green=Both, red=None)
-  - UI: one-click Enable/Disable button per video (toggles None/Both)
-  - UI: Tags/Ratings/Users are now collapsed checkbox-dropdowns instead of scrollable multi-selects, laid out horizontally
-  - Removed unused "Clean Intros" legacy-migration button
+  - Fix: MediaType now uses the string enum values Jellyfin's API actually returns (was using numeric values, causing a crash on load)
