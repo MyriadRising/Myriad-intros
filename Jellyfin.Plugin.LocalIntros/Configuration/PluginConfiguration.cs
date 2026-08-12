@@ -10,15 +10,15 @@ public class IntroPluginConfiguration : BasePluginConfiguration
 
     public List<IntroVideo> DetectedLocalVideos { get; set; } = new List<IntroVideo>();
 
-    public List<Guid> DefaultLocalVideos { get; set; } = new List<Guid>();
+    /// <summary>
+    /// One rule per detected intro video, controlling when it is eligible to play.
+    /// </summary>
+    public List<IntroRule> IntroRules { get; set; } = new List<IntroRule>();
 
-    public List<TagIntro> TagIntros { get; set; } = new List<TagIntro>();
-    public List<GenreIntro> GenreIntros { get; set; } = new List<GenreIntro>();
-    public List<StudioIntro> StudioIntros { get; set; } = new List<StudioIntro>();
-    public List<DateRangeIntro> CurrentDateIntros { get; set; } = new List<DateRangeIntro>();
-    public List<DateRangeIntro> PremiereDateIntros { get; set; } = new List<DateRangeIntro>();
-
-    public bool IntrosForMoviesOnly { get; set; } = false;
+    /// <summary>
+    /// Users in this list never see intros, regardless of any rule. Admin-managed hard override.
+    /// </summary>
+    public List<Guid> DisabledUserIds { get; set; } = new List<Guid>();
 }
 
 public class IntroVideo
@@ -28,67 +28,40 @@ public class IntroVideo
     public Guid ItemId { get; set; }
 }
 
-public interface ISpecialIntro
+public enum MediaTypeFilter
 {
-    Guid IntroId { get; set; }
-    int Precedence { get; set; }
-    int Prevalence { get; set; }
+    Movies,
+    Shows,
+    Both,
+    None
 }
 
-public class TagIntro : ISpecialIntro
+public class IntroRule
 {
     public Guid IntroId { get; set; }
-    public string TagName { get; set; }
-    public int Precedence { get; set; }
-    public int Prevalence { get; set; }
-}
-public class DateRangeIntro : ISpecialIntro
-{
-    public Guid IntroId { get; set; }
-    public DateTime DateStart { get; set; }
-    public DateTime DateEnd { get; set; }
-    public int Precedence { get; set; }
-    public int Prevalence { get; set; }
-    public CurrentDateRepeatRangeType RepeatType { get; set; } = CurrentDateRepeatRangeType.None;
-    public bool IsDateInRange(DateTime relevantDate)
-    {
-        switch (RepeatType)
-        {
-            case CurrentDateRepeatRangeType.None:
-                return relevantDate >= DateStart && relevantDate <= DateEnd;
-            case CurrentDateRepeatRangeType.Weekly:
-                return relevantDate.DayOfWeek >= DateStart.DayOfWeek && relevantDate.DayOfWeek <= DateEnd.DayOfWeek;
-            case CurrentDateRepeatRangeType.Monthly:
-                return relevantDate.Day >= DateStart.Day && relevantDate.Day <= DateEnd.Day;
-            case CurrentDateRepeatRangeType.Yearly:
-                var currentYear = relevantDate.Year;
-                var pretendCurrentDate = new DateTime(currentYear, relevantDate.Month, relevantDate.Day);
-                var pretendDateEnd = new DateTime(currentYear, DateEnd.Month, DateEnd.Day);
-                var pretendDateStart = new DateTime(currentYear, DateStart.Month, DateStart.Day);
-                return pretendCurrentDate >= pretendDateStart && pretendCurrentDate <= pretendDateEnd;
-            default:
-                throw new ArgumentOutOfRangeException($"RepeatType Invalid: {RepeatType}");
-        }
-    }
-}
-public enum CurrentDateRepeatRangeType
-{
-    None,
-    Weekly,
-    Monthly,
-    Yearly
-}
-public class GenreIntro : ISpecialIntro
-{
-    public Guid IntroId { get; set; }
-    public string GenreName { get; set; }
-    public int Precedence { get; set; }
-    public int Prevalence { get; set; }
-}
-public class StudioIntro : ISpecialIntro
-{
-    public Guid IntroId { get; set; }
-    public string StudioName { get; set; }
-    public int Precedence { get; set; }
-    public int Prevalence { get; set; }
+
+    /// <summary>
+    /// Which kind of content this intro is eligible for. None means the intro never plays.
+    /// </summary>
+    public MediaTypeFilter MediaType { get; set; } = MediaTypeFilter.Both;
+
+    /// <summary>
+    /// Tags this intro is restricted to. Empty means no tag restriction (all).
+    /// </summary>
+    public List<string> Tags { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Official ratings this intro is restricted to. Empty means no rating restriction (all).
+    /// </summary>
+    public List<string> Ratings { get; set; } = new List<string>();
+
+    /// <summary>
+    /// Users this intro is restricted to. Empty means no user restriction (all users).
+    /// </summary>
+    public List<Guid> UserIds { get; set; } = new List<Guid>();
+
+    /// <summary>
+    /// Relative weight of this intro versus other eligible intros, 1-100.
+    /// </summary>
+    public int Frequency { get; set; } = 50;
 }

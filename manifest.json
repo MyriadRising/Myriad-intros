@@ -1,0 +1,20 @@
+[
+    {
+        "guid": "07d86795-01f2-4d22-b174-cdc6056c3e7c",
+        "name": "Local Intros",
+        "description": "Select a flashy pre-roll from local storage to run before any video content. The video details are loaded from disk after a video is played from the library from the beginning of the video. A random video is selected, and all videos in the local directory are enabled by default. Specific videos can be enabled or disabled as necessary. After videos are loaded for the first time, additional videos found in the directory are not enabled by default.\n",
+        "overview": "Display flashy intros before movies and other videos",
+        "owner": "Jellyfin",
+        "category": "MoviesAndShows",
+        "versions": [
+            {
+                "version": "5.0.0.0",
+                "changelog": "- Rebuilt rules engine: one rule per intro video (media type, tags, ratings, users, frequency weight)\n- Removed legacy Genre/Studio/Date-range rules and Precedence in favor of the new per-video rules\n- Added admin-managed per-user opt-out (disable intros entirely for specific users)",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/artifacts/local-intros/local-intros_5.0.0.0.zip",
+                "checksum": "f9a311f1d6f658de5d1cb95ff556d6e5",
+                "timestamp": "2026-08-12T02:06:52Z"
+            }
+        ]
+    }
+]

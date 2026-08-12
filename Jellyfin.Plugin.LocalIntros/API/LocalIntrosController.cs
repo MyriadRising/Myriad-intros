@@ -113,7 +113,7 @@ public class LocalIntrosController : ControllerBase
         else if (System.IO.File.Exists(introsPath))
         {
             logger.LogInformation($"Retrieving file at {introsPath}");
-            filesOnDisk = new FancyList<string> { introsPath };
+            filesOnDisk = new List<string> { introsPath };
         }
         else
         {
@@ -174,13 +174,8 @@ public class LocalIntrosController : ControllerBase
             if (inLibrary.Count() == 0)
             {
                 logger.LogInformation($"No existing items in library, erasing configuration.");
-                LocalIntrosPlugin.Instance.Configuration.CurrentDateIntros = new ();
-                LocalIntrosPlugin.Instance.Configuration.PremiereDateIntros = new ();
-                LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos = new ();
-                LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos = new ();
-                LocalIntrosPlugin.Instance.Configuration.GenreIntros = new ();
-                LocalIntrosPlugin.Instance.Configuration.StudioIntros = new ();
-                LocalIntrosPlugin.Instance.Configuration.TagIntros = new ();
+                LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos = new();
+                LocalIntrosPlugin.Instance.Configuration.IntroRules = new();
 
                 UpdateOptionsConfig(libraryResults.Values);
             }
@@ -198,43 +193,42 @@ public class LocalIntrosController : ControllerBase
         return libraryResults;
     }
 
-    private void CleanList(ICollection<Guid> listToClean, HashSet<Guid> existingItems)
-    {
-        listToClean.Where(x => !existingItems.Contains(x)).ToList().ForEach(x => listToClean.Remove(x));
-    }
-
-    private void CleanList<TIntro>(List<TIntro> listToClean, HashSet<Guid> existingItems)
-        where TIntro : ISpecialIntro
-    {
-        listToClean.Where(x => !existingItems.Contains(x.IntroId)).ToList().ForEach(x => listToClean.Remove(x));
-    }
-
+    /// <summary>
+    /// Refreshes DetectedLocalVideos to match what's actually on disk, drops IntroRules for videos
+    /// that no longer exist, and ensures every remaining detected video has a rule row (defaulting
+    /// to Both/no restrictions/Frequency 50) so it shows up in the admin UI.
+    /// </summary>
     private void UpdateOptionsConfig(IEnumerable<BaseItem> libraryResults)
     {
-        // Dictionary so we can use ContainsKey
         logger.LogTrace($"Adding detected videos to configuration.");
-        LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos = libraryResults.Select(x => new IntroVideo{
+        LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos = libraryResults.Select(x => new IntroVideo
+        {
             ItemId = x.Id,
             Name = x.Name
         }).ToList();
 
         var validIds = LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos.Select(x => x.ItemId).ToHashSet();
 
-        CleanList(LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos, validIds);
-        CleanList(LocalIntrosPlugin.Instance.Configuration.StudioIntros, validIds);
-        CleanList(LocalIntrosPlugin.Instance.Configuration.TagIntros, validIds);
-        CleanList(LocalIntrosPlugin.Instance.Configuration.GenreIntros, validIds);
-        CleanList(LocalIntrosPlugin.Instance.Configuration.CurrentDateIntros, validIds);
-        CleanList(LocalIntrosPlugin.Instance.Configuration.PremiereDateIntros, validIds);
+        logger.LogTrace($"Removing rules for videos no longer on disk.");
+        LocalIntrosPlugin.Instance.Configuration.IntroRules = LocalIntrosPlugin.Instance.Configuration.IntroRules
+            .Where(r => validIds.Contains(r.IntroId))
+            .ToList();
 
-        logger.LogTrace($"Checking to see if there are any configured videos...");
-        if (LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos.Count + LocalIntrosPlugin.Instance.Configuration.StudioIntros.Count + LocalIntrosPlugin.Instance.Configuration.TagIntros.Count + LocalIntrosPlugin.Instance.Configuration.GenreIntros.Count == 0)
+        var existingRuleIds = LocalIntrosPlugin.Instance.Configuration.IntroRules.Select(r => r.IntroId).ToHashSet();
+
+        logger.LogTrace($"Adding default rules for newly detected videos.");
+        foreach (var video in LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos)
         {
-            logger.LogInformation($"No configured videos found, adding first video to default.");
-            LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos.Add(libraryResults.First().Id);
+            if (!existingRuleIds.Contains(video.ItemId))
+            {
+                logger.LogInformation($"Adding default rule for new intro: {video.Name}");
+                LocalIntrosPlugin.Instance.Configuration.IntroRules.Add(new IntroRule
+                {
+                    IntroId = video.ItemId
+                });
+            }
         }
 
-        //And then to the List as we need for saving. (XML can't serialize Dictionaries..)
         LocalIntrosPlugin.Instance.SaveConfiguration();
     }
 

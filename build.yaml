@@ -1,6 +1,6 @@
 name: 'Local Intros'
 guid: '07d86795-01f2-4d22-b174-cdc6056c3e7c'
-version: 4
+version: 5
 targetAbi: '10.11.0.0'
 framework: 'net9.0'
 owner: 'Jellyfin'
@@ -12,5 +12,6 @@ category: 'MoviesAndShows'
 artifacts:
   - 'Jellyfin.Plugin.LocalIntros.dll'
 changelog: |-
-  - Jellyfin 10.11 support (#51) @crobibero
-  - Update README.md (#41) @lukasitaly
+  - Rebuilt rules engine: one rule per intro video (media type, tags, ratings, users, frequency weight)
+  - Removed legacy Genre/Studio/Date-range rules and Precedence in favor of the new per-video rules
+  - Added admin-managed per-user opt-out (disable intros entirely for specific users)

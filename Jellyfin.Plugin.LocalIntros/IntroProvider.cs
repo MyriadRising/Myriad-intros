@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 using Jellyfin.Database.Implementations.Entities;
 using Jellyfin.Plugin.LocalIntros.Configuration;
@@ -30,11 +29,10 @@ public class IntroProvider : IIntroProvider
     {
         try
         {
-
             if (LocalIntrosPlugin.Instance.Configuration.Local != string.Empty)
             {
                 logger.LogTrace("Local Config Detected, retrieving local intros.");
-                return Task.FromResult(Local(item));
+                return Task.FromResult(Local(item, user));
             }
             else
             {
@@ -50,46 +48,92 @@ public class IntroProvider : IIntroProvider
         }
     }
 
-    private readonly CookieContainer _cookieContainer = new CookieContainer();
-
     private readonly Random _random = new Random();
 
     private static string introsPath => LocalIntrosPlugin.Instance.Configuration.Local;
 
-    private (HashSet<string> tags, HashSet<string> genres, HashSet<string> studios, DateTime now, DateTime premiereDate) GetCriteriaList(BaseItem item)
+    /// <summary>
+    /// Gets the tags, official rating, and media type (Movies/Shows) relevant to matching this item
+    /// against configured intro rules. Tags and rating are inherited up from episode -> season -> series,
+    /// matching how Jellyfin displays them for episodes.
+    /// </summary>
+    private (HashSet<string> tags, string rating, MediaTypeFilter mediaType) GetCriteria(BaseItem item)
     {
         switch (item.GetBaseItemKind())
         {
             case Data.Enums.BaseItemKind.Movie:
                 var movie = item as Movie;
-
-                return (movie.Tags.ToHashSet(),movie.Genres.ToHashSet(),movie.Studios.ToHashSet(), DateTime.Now, item.PremiereDate ?? DateTime.Today);
+                return (
+                    movie.Tags.ToHashSet(StringComparer.OrdinalIgnoreCase),
+                    movie.OfficialRating,
+                    MediaTypeFilter.Movies
+                );
             case Data.Enums.BaseItemKind.Episode:
                 var episode = item as Episode;
                 var season = episode.Season;
                 var series = episode.Series;
-                return (
-                    episode.Tags.Concat(season.Tags).Concat(series.Tags).ToHashSet(),
-                    episode.Genres.Concat(season.Genres).Concat(series.Genres).ToHashSet(),
-                    episode.Studios.Concat(season.Studios).Concat(series.Studios).ToHashSet(),
-                    DateTime.Now,
-                    episode.PremiereDate ?? season.PremiereDate ?? series.PremiereDate ?? DateTime.Today
-                );
+                var tags = episode.Tags
+                    .Concat(season?.Tags ?? Array.Empty<string>())
+                    .Concat(series?.Tags ?? Array.Empty<string>())
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var rating = episode.OfficialRating ?? season?.OfficialRating ?? series?.OfficialRating;
+                return (tags, rating, MediaTypeFilter.Shows);
+            default:
+                // Unsupported item type - MediaTypeFilter.None will never match a real rule and
+                // will short-circuit selection below.
+                return (new HashSet<string>(StringComparer.OrdinalIgnoreCase), null, MediaTypeFilter.None);
         }
-        var emp = new HashSet<string>();
-        return (emp,emp,emp, DateTime.Now, DateTime.Today);
     }
 
-    private IEnumerable<IntroInfo> Local(BaseItem item)
+    /// <summary>
+    /// Determines whether a rule is eligible to play for this item and user.
+    /// Empty Tags/Ratings/UserIds on the rule mean "no restriction" (all).
+    /// </summary>
+    private bool RuleMatches(IntroRule rule, MediaTypeFilter itemMediaType, HashSet<string> itemTags, string itemRating, Guid userId)
     {
-        if (LocalIntrosPlugin.Instance.Configuration.IntrosForMoviesOnly && item.GetBaseItemKind() != Data.Enums.BaseItemKind.Movie)
+        if (rule.MediaType == MediaTypeFilter.None)
+        {
+            return false;
+        }
+
+        if (rule.MediaType != MediaTypeFilter.Both && rule.MediaType != itemMediaType)
+        {
+            return false;
+        }
+
+        if (rule.Tags.Count > 0 && !rule.Tags.Any(t => itemTags.Contains(t)))
+        {
+            return false;
+        }
+
+        if (rule.Ratings.Count > 0)
+        {
+            if (itemRating == null || !rule.Ratings.Any(r => r.Equals(itemRating, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+        }
+
+        if (rule.UserIds.Count > 0 && !rule.UserIds.Contains(userId))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private IEnumerable<IntroInfo> Local(BaseItem item, User user)
+    {
+        if (LocalIntrosPlugin.Instance.Configuration.DisabledUserIds.Contains(user.Id))
+        {
+            logger.LogInformation($"Intros disabled for user {user.Username}, skipping.");
             return Enumerable.Empty<IntroInfo>();
+        }
 
         if (!File.Exists(introsPath) && !Directory.Exists(introsPath))
         {
             throw new Exception("No intros found in local path");
         }
-        var location = File.GetAttributes(introsPath);
 
         var libraryResults = RetrieveIntroLibrary();
 
@@ -98,111 +142,55 @@ public class IntroProvider : IIntroProvider
             throw new Exception("No intros found in library");
         }
 
-        var (tags, genres, studios, now, premiereDate) = GetCriteriaList(item);
+        var (itemTags, itemRating, itemMediaType) = GetCriteria(item);
 
-        var validTagIntros = LocalIntrosPlugin.Instance.Configuration.TagIntros.Where(t => tags.Any(x => x.Equals(t.TagName, StringComparison.OrdinalIgnoreCase)));
-        var validGenreIntros = LocalIntrosPlugin.Instance.Configuration.GenreIntros.Where(g => genres.Any(x => x.Equals(g.GenreName, StringComparison.OrdinalIgnoreCase)));
-        var validStudioIntros = LocalIntrosPlugin.Instance.Configuration.StudioIntros.Where(s => studios.Any(x => x.Equals(s.StudioName, StringComparison.OrdinalIgnoreCase)));
-        var validCurrentDateIntros = LocalIntrosPlugin.Instance.Configuration.CurrentDateIntros.Where(d => d.IsDateInRange(now));
-        var validReleaseDateIntros = LocalIntrosPlugin.Instance.Configuration.PremiereDateIntros.Where(d => d.IsDateInRange(premiereDate));
-
-        FancyList<ISpecialIntro> selectableIntros = new FancyList<ISpecialIntro>();
-
-
-        selectableIntros += validTagIntros;
-        selectableIntros += validGenreIntros;
-        selectableIntros += validStudioIntros;
-        selectableIntros += validCurrentDateIntros;
-
-
-        FancyList<Guid> randomIntros = new();
-
-        if (selectableIntros.Any())
+        if (itemMediaType == MediaTypeFilter.None)
         {
-            logger.LogInformation($"Selecting intros based on criteria, {selectableIntros.Count} intros found");
-
-            var highestPrev = selectableIntros.Max(i => i.Precedence);
-
-            var selectedIntros = selectableIntros.Where(i => i.Precedence == highestPrev);
-
-            var maxNum = selectableIntros.Sum(i => i.Prevalence);
-
-            var minNum = 0;
-
-            var index = _random.Next(minNum, maxNum);
-
-            logger.LogInformation($"Selecting intro from {minNum} to {maxNum}, selected index: {index}");
-
-            foreach (var intro in selectedIntros)
-            {
-                if (index < intro.Prevalence)
-                {
-                    logger.LogInformation($"Selected intro: {intro.IntroId}");
-                    randomIntros += intro.IntroId;
-                    break;
-                }
-                else
-                {
-                    index -= intro.Prevalence;
-                }
-            }
-            if (randomIntros.Count == 0)
-            {
-                var selItem = selectedIntros.Last();
-                logger.LogInformation($"Selected intro: {selItem.IntroId}");
-                randomIntros += selItem.IntroId;
-            }
+            logger.LogTrace("Item is not a movie or episode, no intro to select.");
+            return Enumerable.Empty<IntroInfo>();
         }
-        else
+
+        var eligibleRules = LocalIntrosPlugin.Instance.Configuration.IntroRules
+            .Where(r => libraryResults.ContainsKey(r.IntroId))
+            .Where(r => RuleMatches(r, itemMediaType, itemTags, itemRating, user.Id))
+            .ToList();
+
+        if (!eligibleRules.Any())
         {
-            randomIntros += LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos.Distinct();
-
-            logger.LogInformation($"Selecting intros based on default, {randomIntros.Count} intros found");
+            logger.LogInformation("No eligible intros for this item/user.");
+            return Enumerable.Empty<IntroInfo>();
         }
-        if (randomIntros.Any())
+
+        logger.LogInformation($"Selecting intro from {eligibleRules.Count} eligible rule(s).");
+
+        var totalWeight = eligibleRules.Sum(r => Math.Max(r.Frequency, 1));
+        var index = _random.Next(0, totalWeight);
+
+        var selectedRule = eligibleRules[eligibleRules.Count - 1];
+        foreach (var rule in eligibleRules)
         {
-            var selectedId = randomIntros[_random.Next(randomIntros.Count)];
-
-            logger.LogInformation($"Selected intro ID: {selectedId}");
-
-            if (libraryResults.ContainsKey(selectedId))
+            var weight = Math.Max(rule.Frequency, 1);
+            if (index < weight)
             {
-                var selectedItem = libraryResults[selectedId];
-
-                logger.LogInformation($"Selected intro name: {selectedItem.Name}");
-
-                logger.LogInformation($"Selected intro path: {selectedItem.Path}");
-
-                return new []{new IntroInfo
-                {
-                    Path = selectedItem.Path,
-                    ItemId = selectedItem.Id
-                }};
+                selectedRule = rule;
+                break;
             }
-            else
-            {
-                throw new Exception($"Selected intro ID: {selectedId} not found in library");
-            }
+            index -= weight;
         }
-        return Enumerable.Empty<IntroInfo>();
+
+        var selectedItem = libraryResults[selectedRule.IntroId];
+
+        logger.LogInformation($"Selected intro: {selectedItem.Name} ({selectedItem.Path})");
+
+        return new[]
+        {
+            new IntroInfo
+            {
+                Path = selectedItem.Path,
+                ItemId = selectedItem.Id
+            }
+        };
     }
-
-    private void UpdateOptionsConfig(IEnumerable<BaseItem> libraryResults)
-    {
-        // Dictionary so we can use ContainsKey
-
-        if (LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos.Count + LocalIntrosPlugin.Instance.Configuration.StudioIntros.Count + LocalIntrosPlugin.Instance.Configuration.TagIntros.Count + LocalIntrosPlugin.Instance.Configuration.GenreIntros.Count == 0)
-        {
-            LocalIntrosPlugin.Instance.Configuration.DefaultLocalVideos.Add(libraryResults.First().Id);
-        }
-        //And then to the List as we need for saving. (XML can't serialize Dictionaries..)
-        LocalIntrosPlugin.Instance.Configuration.DetectedLocalVideos = libraryResults.Select(x => new IntroVideo{
-            ItemId = x.Id,
-            Name = x.Name
-        }).OrderBy(i => i.Name).ToList();
-        LocalIntrosPlugin.Instance.SaveConfiguration();
-    }
-
 
     private Dictionary<Guid, BaseItem> RetrieveIntroLibrary() =>
         LocalIntrosPlugin.LibraryManager.GetItemsResult(new InternalItemsQuery
