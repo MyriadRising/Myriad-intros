@@ -11,7 +11,7 @@ namespace Jellyfin.Plugin.LocalIntros
 {
     public class LocalIntrosPlugin : BasePlugin<IntroPluginConfiguration>, IHasWebPages
     {
-        public override string Name => "Myriad Local Intros";
+        public override string Name => "Myriad's Pre-Rolls";
 
         public override Guid Id => Guid.Parse("5d9f187d-c598-478d-8dc3-0223f3c39938");
 
