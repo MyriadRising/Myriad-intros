@@ -25,7 +25,7 @@
 
                     <div class="verticalSection">
                         <h2 class="sectionTitle">Intro Rules</h2>
-                        <p class="fieldDescription">Each video below plays according to its own rules. Leaving Tags/Ratings/Users at "All" removes that restriction. Frequency is a relative weight among whichever intros are eligible for a given item.</p>
+                        <p class="fieldDescription">Each video below plays according to its own rules. Leaving Tags/Ratings at "All" removes that restriction. Exclude Users blocks specific users from this intro (leave empty for no exclusions). Frequency is a relative weight among whichever intros are eligible for a given item.</p>
 
                         <div class="inputContainer">
                             <label class="inputLabel inputLabelUnfocused" for="sortSelection">Sort By</label>
@@ -441,8 +441,8 @@
                     ratingField.append(renderMultiSelectDropdown(ratingId, ratingOptions, rule.Ratings, 'All Ratings', vals => { rule.Ratings = vals; }));
                     filterRow.append(ratingField);
 
-                    var userField = $('<div class="inputContainer" style="flex:1;min-width:160px;margin:0;"><label class="inputLabel inputLabelUnfocused">Users</label></div>');
-                    userField.append(renderMultiSelectDropdown(userId, userOptions, rule.UserIds, 'All Users', vals => { rule.UserIds = vals; }));
+                    var userField = $('<div class="inputContainer" style="flex:1;min-width:160px;margin:0;"><label class="inputLabel inputLabelUnfocused">Exclude Users</label></div>');
+                    userField.append(renderMultiSelectDropdown(userId, userOptions, rule.UserIds, 'No Exclusions', vals => { rule.UserIds = vals; }));
                     filterRow.append(userField);
 
                     body.append(filterRow);

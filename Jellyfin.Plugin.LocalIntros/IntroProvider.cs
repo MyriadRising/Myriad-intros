@@ -87,7 +87,8 @@ public class IntroProvider : IIntroProvider
 
     /// <summary>
     /// Determines whether a rule is eligible to play for this item and user.
-    /// Empty Tags/Ratings/UserIds on the rule mean "no restriction" (all).
+    /// Empty Tags/Ratings on the rule mean "no restriction" (all). UserIds is an EXCLUDE list:
+    /// empty means no one is excluded, and a user in the list is blocked from seeing this intro.
     /// </summary>
     private bool RuleMatches(IntroRule rule, MediaTypeFilter itemMediaType, HashSet<string> itemTags, string itemRating, Guid userId)
     {
@@ -114,7 +115,7 @@ public class IntroProvider : IIntroProvider
             }
         }
 
-        if (rule.UserIds.Count > 0 && !rule.UserIds.Contains(userId))
+        if (rule.UserIds.Count > 0 && rule.UserIds.Contains(userId))
         {
             return false;
         }

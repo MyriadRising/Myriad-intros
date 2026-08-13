@@ -56,7 +56,8 @@ public class IntroRule
     public List<string> Ratings { get; set; } = new List<string>();
 
     /// <summary>
-    /// Users this intro is restricted to. Empty means no user restriction (all users).
+    /// Users excluded from this intro. Empty means no exclusions (all users eligible).
+    /// A user in this list will never see this specific intro, regardless of other matching criteria.
     /// </summary>
     public List<Guid> UserIds { get; set; } = new List<Guid>();
 

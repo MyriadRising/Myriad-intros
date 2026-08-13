@@ -28,6 +28,14 @@
         "imageUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-s-pre-rolls/image.png",
         "versions": [
             {
+                "version": "4.1.0.0",
+                "changelog": "- Behavior change: per-video \"Users\" field now EXCLUDES the selected users instead of restricting to them. Empty means no exclusions (everyone eligible); a checked user will never see that specific intro.",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://raw.githubusercontent.com/MyriadRising/Myriad-intros/master/myriad-s-pre-rolls/myriad-s-pre-rolls_4.1.0.0.zip",
+                "checksum": "72a7dadcd7c9916a0925e7833a2419f8",
+                "timestamp": "2026-08-13T22:53:56Z"
+            },
+            {
                 "version": "4.0.0.0",
                 "changelog": "- Added Preview: play any intro clip in an overlay without leaving the config page\n- Added plugin thumbnail for the catalog listing",
                 "targetAbi": "10.11.0.0",
